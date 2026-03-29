@@ -1,0 +1,13 @@
+# Dependencies (all services)
+node_modules/
+**/node_modules/
+
+# Environment files (all services)
+.env
+**/.env
+**/.env.*
+!**/.env.example
+
+# Logs
+*.log
+**/*.log
