@@ -1,5 +1,4 @@
-# hospital-microservices 🏥
-### IT4020 - Modern Topics in IT | Assignment 2 | SLIIT 2026
+# Medicore 🏥
 > Hospital Management System built with Node.js Microservices + MongoDB + API Gateway
 
 ---
@@ -11,7 +10,6 @@ hospital-microservices/
 ├── api-gateway/
 │   ├── config/
 │   ├── .env
-│   ├── .env.example
 │   ├── .gitignore
 │   ├── index.js
 │   └── package.json
@@ -25,7 +23,6 @@ hospital-microservices/
 │   ├── routes/
 │   │   └── patientRoutes.js
 │   ├── .env
-│   ├── .env.example
 │   ├── .gitignore
 │   ├── index.js
 │   └── package.json
@@ -105,6 +102,7 @@ For microservices architecture, option 1 is better because each service keeps it
 ### Swagger Docs
 | Service | Native Swagger | Via Gateway |
 |---------|----------------|-------------|
+| API Gateway (All Services) | - | http://localhost:3000/docs |
 | Patient | http://localhost:3001/api-docs | http://localhost:3000/docs/patients |
 | Doctor | http://localhost:3002/api-docs | http://localhost:3000/docs/doctors |
 | Appointment | http://localhost:3003/api-docs | http://localhost:3000/docs/appointments |
@@ -116,8 +114,8 @@ For microservices architecture, option 1 is better because each service keeps it
 
 | Member | Service | Port |
 |--------|---------|------|
-| Student Name 1 | Patient Service | 3001 |
-| Student Name 2 | Doctor Service | 3002 |
-| Student Name 3 | Appointment Service | 3003 |
-| Student Name 4 | Pharmacy Service | 3004 |
+| Pathiraja H.P.M.O.N.  | Patient Service | 3001 |
+| Weerakoon W.M.D.P.  | Doctor Service | 3002 |
+| Chandrasekara C.M.P.V | Appointment Service | 3003 |
+| Abeysekara W.R.G.M  | Pharmacy Service | 3004 |
 
