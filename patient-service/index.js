@@ -7,6 +7,7 @@ const patientRoutes = require('./routes/patientRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const GATEWAY_PORT = process.env.GATEWAY_PORT || 3000;
 
 // Connect to MongoDB
 connectDB();
@@ -21,14 +22,18 @@ const swaggerOptions = {
     info: {
       title: 'Patient Service API',
       version: '1.0.0',
-      description: 'Microservice for managing hospital patients - IT4020 SLIIT',
+      description: 'Patient management service',
     },
-    servers: [{ url: `http://localhost:${PORT}` }],
+    servers: [
+      { url: `http://localhost:${GATEWAY_PORT}/api`, description: 'Via API Gateway' },
+      { url: `http://localhost:${PORT}`, description: 'Direct Service Access' },
+    ],
   },
   apis: ['./routes/*.js'],
 };
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.get('/api-docs-json', (req, res) => res.json(swaggerSpec));
 
 // Routes
 app.use('/patients', patientRoutes);

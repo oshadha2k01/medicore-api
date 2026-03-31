@@ -7,6 +7,7 @@ const doctorRoutes = require('./routes/doctorRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3002;
+const GATEWAY_PORT = process.env.GATEWAY_PORT || 3000;
 
 connectDB();
 app.use(express.json());
@@ -17,14 +18,18 @@ const swaggerOptions = {
     info: {
       title: 'Doctor Service API',
       version: '1.0.0',
-      description: 'Microservice for managing hospital doctors - IT4020 SLIIT',
+      description: 'Doctor management service',
     },
-    servers: [{ url: `http://localhost:${PORT}` }],
+    servers: [
+      { url: `http://localhost:${GATEWAY_PORT}/api`, description: 'Via API Gateway' },
+      { url: `http://localhost:${PORT}`, description: 'Direct Service Access' },
+    ],
   },
   apis: ['./routes/*.js'],
 };
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.get('/api-docs-json', (req, res) => res.json(swaggerSpec));
 
 app.use('/doctors', doctorRoutes);
 
