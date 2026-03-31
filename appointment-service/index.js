@@ -7,6 +7,7 @@ const appointmentRoutes = require('./routes/appointmentRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3003;
+const GATEWAY_PORT = process.env.GATEWAY_PORT || 3000;
 
 connectDB();
 app.use(express.json());
@@ -17,14 +18,18 @@ const swaggerOptions = {
     info: {
       title: 'Appointment Service API',
       version: '1.0.0',
-      description: 'Microservice for managing hospital appointments - IT4020 SLIIT',
+      description: 'Appointment management service',
     },
-    servers: [{ url: `http://localhost:${PORT}` }],
+    servers: [
+      { url: `http://localhost:${GATEWAY_PORT}/api`, description: 'Via API Gateway' },
+      { url: `http://localhost:${PORT}`, description: 'Direct Service Access' },
+    ],
   },
   apis: ['./routes/*.js'],
 };
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.get('/api-docs-json', (req, res) => res.json(swaggerSpec));
 
 app.use('/appointments', appointmentRoutes);
 
