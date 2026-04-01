@@ -17,7 +17,7 @@ const swaggerOptions = {
     info: {
       title: 'Pharmacy Service API',
       version: '1.0.0',
-      description: 'Microservice for managing hospital pharmacy - IT4020 SLIIT',
+      description: 'Pharmacy management service',
     },
     servers: [{ url: `http://localhost:${PORT}` }],
   },
@@ -25,6 +25,7 @@ const swaggerOptions = {
 };
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.get('/api-docs-json', (req, res) => res.json(swaggerSpec));
 
 app.use('/medicines', medicineRoutes);
 

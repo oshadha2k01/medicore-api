@@ -51,11 +51,13 @@ app.use('/api/medicines', proxyWithDefaults(services.pharmacy, { '^/api/medicine
 app.use('/docs/patients', proxyWithDefaults(services.patient, { '^/docs/patients': '/api-docs' }));
 app.use('/docs/doctors', proxyWithDefaults(services.doctor, { '^/docs/doctors': '/api-docs' }));
 app.use('/docs/appointments', proxyWithDefaults(services.appointment, { '^/docs/appointments': '/api-docs' }));
+app.use('/docs/pharmacy', proxyWithDefaults(services.pharmacy, { '^/docs/pharmacy': '/api-docs' }));
 
 // Raw OpenAPI JSON proxy for multi-doc Swagger UI
 app.use('/docs-json/patients', proxyWithDefaults(services.patient, { '^/docs-json/patients': '/api-docs-json' }));
 app.use('/docs-json/doctors', proxyWithDefaults(services.doctor, { '^/docs-json/doctors': '/api-docs-json' }));
 app.use('/docs-json/appointments', proxyWithDefaults(services.appointment, { '^/docs-json/appointments': '/api-docs-json' }));
+app.use('/docs-json/pharmacy', proxyWithDefaults(services.pharmacy, { '^/docs-json/pharmacy': '/api-docs-json' }));
 
 const gatewaySwaggerOptions = {
   explorer: true,
@@ -65,6 +67,7 @@ const gatewaySwaggerOptions = {
       { url: `http://localhost:${PORT}/docs-json/patients`, name: 'Patient Service API' },
       { url: `http://localhost:${PORT}/docs-json/doctors`, name: 'Doctor Service API' },
       { url: `http://localhost:${PORT}/docs-json/appointments`, name: 'Appointment Service API' },
+      { url: `http://localhost:${PORT}/docs-json/pharmacy`, name: 'Pharmacy Service API' },
     ],
   },
 };
@@ -89,6 +92,7 @@ app.get('/', (req, res) => {
       patients:     `http://localhost:${PORT}/docs/patients`,
       doctors:      `http://localhost:${PORT}/docs/doctors`,
       appointments: `http://localhost:${PORT}/docs/appointments`,
+      pharmacy:     `http://localhost:${PORT}/docs/pharmacy`,
     },
   });
 });
