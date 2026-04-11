@@ -7,7 +7,6 @@ const patientRoutes = require('./routes/patientRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-const GATEWAY_PORT = process.env.GATEWAY_PORT || 3000;
 
 // Connect to MongoDB
 connectDB();
@@ -25,8 +24,7 @@ const swaggerOptions = {
       description: 'Patient management service',
     },
     servers: [
-      { url: `http://localhost:${GATEWAY_PORT}/api`, description: 'Via API Gateway' },
-      { url: `http://localhost:${PORT}`, description: 'Direct Service Access' },
+      { url: '/api', description: 'Gateway or service API base path' },
     ],
   },
   apis: ['./routes/*.js'],
@@ -37,6 +35,7 @@ app.get('/api-docs-json', (req, res) => res.json(swaggerSpec));
 
 // Routes
 app.use('/patients', patientRoutes);
+app.use('/api/patients', patientRoutes);
 
 // Health check
 app.get('/', (req, res) => {

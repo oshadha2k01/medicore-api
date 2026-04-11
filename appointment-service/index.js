@@ -7,7 +7,6 @@ const appointmentRoutes = require('./routes/appointmentRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3003;
-const GATEWAY_PORT = process.env.GATEWAY_PORT || 3000;
 
 connectDB();
 app.use(express.json());
@@ -21,8 +20,7 @@ const swaggerOptions = {
       description: 'Appointment management service',
     },
     servers: [
-      { url: `http://localhost:${GATEWAY_PORT}/api`, description: 'Via API Gateway' },
-      { url: `http://localhost:${PORT}`, description: 'Direct Service Access' },
+      { url: '/api', description: 'Gateway or service API base path' },
     ],
   },
   apis: ['./routes/*.js'],
@@ -32,6 +30,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.get('/api-docs-json', (req, res) => res.json(swaggerSpec));
 
 app.use('/appointments', appointmentRoutes);
+app.use('/api/appointments', appointmentRoutes);
 
 app.get('/', (req, res) => {
   res.json({

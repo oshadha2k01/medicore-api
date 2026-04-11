@@ -7,7 +7,6 @@ const doctorRoutes = require('./routes/doctorRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3002;
-const GATEWAY_PORT = process.env.GATEWAY_PORT || 3000;
 
 connectDB();
 app.use(express.json());
@@ -21,8 +20,7 @@ const swaggerOptions = {
       description: 'Doctor management service',
     },
     servers: [
-      { url: `http://localhost:${GATEWAY_PORT}/api`, description: 'Via API Gateway' },
-      { url: `http://localhost:${PORT}`, description: 'Direct Service Access' },
+      { url: '/api', description: 'Gateway or service API base path' },
     ],
   },
   apis: ['./routes/*.js'],
@@ -32,6 +30,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.get('/api-docs-json', (req, res) => res.json(swaggerSpec));
 
 app.use('/doctors', doctorRoutes);
+app.use('/api/doctors', doctorRoutes);
 
 app.get('/', (req, res) => {
   res.json({
