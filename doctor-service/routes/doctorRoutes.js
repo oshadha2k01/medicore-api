@@ -1,4 +1,5 @@
 const express = require('express');
+const Joi = require('joi');
 const router = express.Router();
 const {
   getAllDoctors,
@@ -7,6 +8,25 @@ const {
   updateDoctor,
   deleteDoctor,
 } = require('../controllers/doctorController');
+const validate = require('../middleware/validate');
+const { authenticate, authorize } = require('../middleware/auth');
+
+const idSchema = Joi.object({
+  id: Joi.string().length(24).hex().required(),
+});
+
+const doctorCreateSchema = Joi.object({
+  name: Joi.string().trim().min(2).max(120).required(),
+  specialization: Joi.string().trim().min(2).max(120).required(),
+  phone: Joi.string().trim().pattern(/^[0-9+\-()\s]{7,20}$/).required(),
+  email: Joi.string().trim().email().required(),
+  available: Joi.boolean().optional(),
+});
+
+const doctorUpdateSchema = doctorCreateSchema.fork(
+  ['name', 'specialization', 'phone', 'email', 'available'],
+  (field) => field.optional()
+).min(1);
 
 /**
  * @swagger
@@ -44,7 +64,9 @@ const {
  *       201:
  *         description: Doctor added
  */
-router.route('/').get(getAllDoctors).post(createDoctor);
+router.route('/')
+  .get(authenticate, authorize('ADMIN', 'STAFF'), getAllDoctors)
+  .post(authenticate, authorize('ADMIN'), validate(doctorCreateSchema), createDoctor);
 
 /**
  * @swagger
@@ -91,6 +113,9 @@ router.route('/').get(getAllDoctors).post(createDoctor);
  *       200:
  *         description: Doctor removed
  */
-router.route('/:id').get(getDoctorById).put(updateDoctor).delete(deleteDoctor);
+router.route('/:id')
+  .get(authenticate, authorize('ADMIN', 'STAFF'), validate(idSchema, 'params'), getDoctorById)
+  .put(authenticate, authorize('ADMIN'), validate(idSchema, 'params'), validate(doctorUpdateSchema), updateDoctor)
+  .delete(authenticate, authorize('ADMIN'), validate(idSchema, 'params'), deleteDoctor);
 
 module.exports = router;

@@ -1,4 +1,5 @@
 const express = require('express');
+const Joi = require('joi');
 const router = express.Router();
 const {
   getAllPatients,
@@ -7,6 +8,25 @@ const {
   updatePatient,
   deletePatient,
 } = require('../controllers/patientController');
+const validate = require('../middleware/validate');
+const { authenticate, authorize } = require('../middleware/auth');
+
+const idSchema = Joi.object({
+  id: Joi.string().length(24).hex().required(),
+});
+
+const patientCreateSchema = Joi.object({
+  name: Joi.string().trim().min(2).max(120).required(),
+  age: Joi.number().integer().min(0).max(120).required(),
+  bloodType: Joi.string().valid('A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-').required(),
+  phone: Joi.string().trim().pattern(/^[0-9+\-()\s]{7,20}$/).required(),
+  email: Joi.string().trim().email().required(),
+});
+
+const patientUpdateSchema = patientCreateSchema.fork(
+  ['name', 'age', 'bloodType', 'phone', 'email'],
+  (field) => field.optional()
+).min(1);
 
 /**
  * @swagger
@@ -44,7 +64,9 @@ const {
  *       201:
  *         description: Patient registered
  */
-router.route('/').get(getAllPatients).post(createPatient);
+router.route('/')
+  .get(authenticate, authorize('ADMIN', 'STAFF'), getAllPatients)
+  .post(authenticate, authorize('ADMIN'), validate(patientCreateSchema), createPatient);
 
 /**
  * @swagger
@@ -91,6 +113,9 @@ router.route('/').get(getAllPatients).post(createPatient);
  *       200:
  *         description: Patient deleted
  */
-router.route('/:id').get(getPatientById).put(updatePatient).delete(deletePatient);
+router.route('/:id')
+  .get(authenticate, authorize('ADMIN', 'STAFF'), validate(idSchema, 'params'), getPatientById)
+  .put(authenticate, authorize('ADMIN'), validate(idSchema, 'params'), validate(patientUpdateSchema), updatePatient)
+  .delete(authenticate, authorize('ADMIN'), validate(idSchema, 'params'), deletePatient);
 
 module.exports = router;

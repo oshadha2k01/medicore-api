@@ -1,0 +1,151 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    services:
+      mongodb:
+        image: mongo:7
+        options: >-
+          --health-cmd mongosh
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        env:
+          MONGO_INITDB_ROOT_USERNAME: admin
+          MONGO_INITDB_ROOT_PASSWORD: password
+        ports:
+          - 27017:27017
+
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Install dependencies for all services
+        run: |
+          npm ci --prefix api-gateway
+          npm ci --prefix patient-service
+          npm ci --prefix doctor-service
+          npm ci --prefix appointment-service
+          npm ci --prefix pharmacy-service
+
+      - name: Lint all services
+        run: |
+          npm run lint --prefix api-gateway || true
+          npm run lint --prefix patient-service || true
+          npm run lint --prefix doctor-service || true
+          npm run lint --prefix appointment-service || true
+          npm run lint --prefix pharmacy-service || true
+
+      - name: Run tests for all services
+        env:
+          MONGODB_URI: mongodb://admin:password@localhost:27017/test_db?authSource=admin
+          NODE_ENV: test
+          JWT_SECRET: test-secret
+        run: |
+          npm test --prefix api-gateway
+          npm test --prefix patient-service
+          npm test --prefix doctor-service
+          npm test --prefix appointment-service
+          npm test --prefix pharmacy-service
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+        if: secrets.DOCKER_USERNAME != ''
+
+      - name: Build and push API Gateway image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./api-gateway
+          push: ${{ secrets.DOCKER_USERNAME != '' }}
+          tags: ${{ secrets.DOCKER_USERNAME }}/medicore-gateway:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push Patient Service image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./patient-service
+          push: ${{ secrets.DOCKER_USERNAME != '' }}
+          tags: ${{ secrets.DOCKER_USERNAME }}/medicore-patient:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push Doctor Service image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./doctor-service
+          push: ${{ secrets.DOCKER_USERNAME != '' }}
+          tags: ${{ secrets.DOCKER_USERNAME }}/medicore-doctor:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push Appointment Service image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./appointment-service
+          push: ${{ secrets.DOCKER_USERNAME != '' }}
+          tags: ${{ secrets.DOCKER_USERNAME }}/medicore-appointment:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push Pharmacy Service image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./pharmacy-service
+          push: ${{ secrets.DOCKER_USERNAME != '' }}
+          tags: ${{ secrets.DOCKER_USERNAME }}/medicore-pharmacy:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  security-scan:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run npm audit
+        run: |
+          npm audit --prefix api-gateway --audit-level=moderate || true
+          npm audit --prefix patient-service --audit-level=moderate || true
+          npm audit --prefix doctor-service --audit-level=moderate || true
+          npm audit --prefix appointment-service --audit-level=moderate || true
+          npm audit --prefix pharmacy-service --audit-level=moderate || true
+
+      - name: Dependency check
+        run: |
+          echo "Checking for outdated dependencies..."
+          npm outdated --prefix api-gateway || true
+          npm outdated --prefix patient-service || true
+          npm outdated --prefix doctor-service || true
+          npm outdated --prefix appointment-service || true
+          npm outdated --prefix pharmacy-service || true

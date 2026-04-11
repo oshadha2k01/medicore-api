@@ -1,4 +1,5 @@
 const express = require('express');
+const Joi = require('joi');
 const router = express.Router();
 const {
   getAllMedicines,
@@ -7,6 +8,25 @@ const {
   updateMedicine,
   deleteMedicine,
 } = require('../controllers/medicineController');
+const validate = require('../middleware/validate');
+const { authenticate, authorize } = require('../middleware/auth');
+
+const idSchema = Joi.object({
+  id: Joi.string().length(24).hex().required(),
+});
+
+const medicineCreateSchema = Joi.object({
+  name: Joi.string().trim().min(2).max(200).required(),
+  category: Joi.string().trim().min(2).max(100).required(),
+  stock: Joi.number().integer().min(0).required(),
+  price: Joi.number().min(0).required(),
+  supplier: Joi.string().trim().min(2).max(200).required(),
+});
+
+const medicineUpdateSchema = medicineCreateSchema.fork(
+  ['name', 'category', 'stock', 'price', 'supplier'],
+  (field) => field.optional()
+).min(1);
 
 /**
  * @swagger
@@ -44,7 +64,9 @@ const {
  *       201:
  *         description: Medicine added
  */
-router.route('/').get(getAllMedicines).post(createMedicine);
+router.route('/')
+  .get(authenticate, authorize('ADMIN', 'STAFF'), getAllMedicines)
+  .post(authenticate, authorize('ADMIN'), validate(medicineCreateSchema), createMedicine);
 
 /**
  * @swagger
@@ -91,6 +113,9 @@ router.route('/').get(getAllMedicines).post(createMedicine);
  *       200:
  *         description: Medicine removed
  */
-router.route('/:id').get(getMedicineById).put(updateMedicine).delete(deleteMedicine);
+router.route('/:id')
+  .get(authenticate, authorize('ADMIN', 'STAFF'), validate(idSchema, 'params'), getMedicineById)
+  .put(authenticate, authorize('ADMIN'), validate(idSchema, 'params'), validate(medicineUpdateSchema), updateMedicine)
+  .delete(authenticate, authorize('ADMIN'), validate(idSchema, 'params'), deleteMedicine);
 
 module.exports = router;

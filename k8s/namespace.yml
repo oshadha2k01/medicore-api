@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: medicore
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: medicore-secrets
+  namespace: medicore
+type: Opaque
+stringData:
+  jwt-secret: "your-super-secret-jwt-key-change-in-production"
+  mongodb-uri: "mongodb://admin:password@mongodb-service:27017/medicore_db?authSource=admin"
+  admin-password: "admin123"
+  staff-password: "staff123"

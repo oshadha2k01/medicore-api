@@ -1,0 +1,165 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7
+    container_name: medicore-mongodb
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - medicore-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --username admin --password password --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api-gateway:
+    build: ./api-gateway
+    container_name: medicore-gateway
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      JWT_SECRET: your-super-secret-jwt-key-production-change-this
+      ADMIN_PASSWORD: admin123
+      STAFF_PASSWORD: staff123
+      PATIENT_SERVICE_URL: http://patient-service:3001
+      DOCTOR_SERVICE_URL: http://doctor-service:3002
+      APPOINTMENT_SERVICE_URL: http://appointment-service:3003
+      PHARMACY_SERVICE_URL: http://pharmacy-service:3004
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://localhost:4318/v1/traces
+    depends_on:
+      patient-service:
+        condition: service_healthy
+      doctor-service:
+        condition: service_healthy
+      appointment-service:
+        condition: service_healthy
+      pharmacy-service:
+        condition: service_healthy
+    networks:
+      - medicore-network
+    healthcheck:
+      test: curl -f http://localhost:3000/health || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  patient-service:
+    build: ./patient-service
+    container_name: medicore-patient
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      MONGODB_URI: mongodb://admin:password@mongodb:27017/patient_db?authSource=admin
+      JWT_SECRET: your-super-secret-jwt-key-production-change-this
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://localhost:4318/v1/traces
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - medicore-network
+    healthcheck:
+      test: curl -f http://localhost:3001/health || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  doctor-service:
+    build: ./doctor-service
+    container_name: medicore-doctor
+    ports:
+      - "3002:3002"
+    environment:
+      NODE_ENV: development
+      PORT: 3002
+      MONGODB_URI: mongodb://admin:password@mongodb:27017/doctor_db?authSource=admin
+      JWT_SECRET: your-super-secret-jwt-key-production-change-this
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://localhost:4318/v1/traces
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - medicore-network
+    healthcheck:
+      test: curl -f http://localhost:3002/health || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  appointment-service:
+    build: ./appointment-service
+    container_name: medicore-appointment
+    ports:
+      - "3003:3003"
+    environment:
+      NODE_ENV: development
+      PORT: 3003
+      MONGODB_URI: mongodb://admin:password@mongodb:27017/appointment_db?authSource=admin
+      JWT_SECRET: your-super-secret-jwt-key-production-change-this
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://localhost:4318/v1/traces
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - medicore-network
+    healthcheck:
+      test: curl -f http://localhost:3003/health || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  pharmacy-service:
+    build: ./pharmacy-service
+    container_name: medicore-pharmacy
+    ports:
+      - "3004:3004"
+    environment:
+      NODE_ENV: development
+      PORT: 3004
+      MONGODB_URI: mongodb://admin:password@mongodb:27017/pharmacy_db?authSource=admin
+      JWT_SECRET: your-super-secret-jwt-key-production-change-this
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://localhost:4318/v1/traces
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - medicore-network
+    healthcheck:
+      test: curl -f http://localhost:3004/health || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: medicore-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    environment:
+      - TZ=UTC
+    networks:
+      - medicore-network
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+
+volumes:
+  mongodb_data:
+  prometheus_data:
+
+networks:
+  medicore-network:
+    driver: bridge

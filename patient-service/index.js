@@ -1,19 +1,53 @@
 require('dotenv').config();
 const express = require('express');
+const helmet = require('helmet');
+const cors = require('cors');
+const morgan = require('morgan');
+const rateLimit = require('express-rate-limit');
+const mongoose = require('mongoose');
 const swaggerUi = require('swagger-ui-express');
 const swaggerJsdoc = require('swagger-jsdoc');
 const connectDB = require('./config/db');
 const patientRoutes = require('./routes/patientRoutes');
+const requestContext = require('./middleware/requestContext');
+const { notFound, errorHandler } = require('./middleware/error');
+const logger = require('./utils/logger');
+const { metricsMiddleware, register } = require('./utils/metrics');
+const { tracingMiddleware, initializeTracing } = require('./utils/tracing');
+const { bulkheadMiddleware } = require('./utils/resilience');
+
+// Initialize tracing
+if (process.env.NODE_ENV !== 'test') {
+  initializeTracing();
+}
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 const GATEWAY_PORT = process.env.GATEWAY_PORT || 3000;
 
 // Connect to MongoDB
-connectDB();
+if (process.env.NODE_ENV !== 'test') {
+  connectDB();
+}
 
 // Middleware
+app.disable('x-powered-by');
+app.use(helmet());
+app.use(cors({ origin: process.env.CORS_ORIGIN || '*' }));
+app.use(requestContext);
+app.use(tracingMiddleware);
+app.use(morgan(':method :url :status :response-time ms - :req[x-correlation-id]', {
+  stream: { write: (msg) => logger.info(msg.trim()) },
+}));
 app.use(express.json());
+app.use(metricsMiddleware);
+app.use(bulkheadMiddleware(10));
+app.use(rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: Number(process.env.RATE_LIMIT_MAX || 300),
+  standardHeaders: true,
+  legacyHeaders: false,
+}));
 
 // Swagger config
 const swaggerOptions = {
@@ -35,6 +69,12 @@ const swaggerSpec = swaggerJsdoc(swaggerOptions);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.get('/api-docs-json', (req, res) => res.json(swaggerSpec));
 
+// Metrics endpoint
+app.get('/metrics', async (req, res) => {
+  res.set('Content-Type', register.contentType);
+  res.end(await register.metrics());
+});
+
 // Routes
 app.use('/patients', patientRoutes);
 
@@ -48,9 +88,58 @@ app.get('/', (req, res) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`Patient Service running on http://localhost:${PORT}`);
-  console.log(`Swagger Docs: http://localhost:${PORT}/api-docs`);
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    service: 'patient-service',
+    status: 'healthy',
+    uptime: process.uptime(),
+    correlationId: req.correlationId,
+    timestamp: new Date().toISOString(),
+  });
 });
+
+app.get('/ready', async (req, res) => {
+  try {
+    const dbReady = mongoose.connection.readyState === 1;
+    if (!dbReady) {
+      return res.status(503).json({
+        service: 'patient-service',
+        status: 'not-ready',
+        dependencies: { mongodb: 'disconnected' },
+        correlationId: req.correlationId,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    await mongoose.connection.db.admin().ping();
+
+    return res.status(200).json({
+      service: 'patient-service',
+      status: 'ready',
+      dependencies: { mongodb: 'connected' },
+      correlationId: req.correlationId,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    return res.status(503).json({
+      service: 'patient-service',
+      status: 'not-ready',
+      dependencies: { mongodb: 'error' },
+      message: error.message,
+      correlationId: req.correlationId,
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
+app.use(notFound);
+app.use(errorHandler);
+
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Patient Service running on http://localhost:${PORT}`);
+    console.log(`Swagger Docs: http://localhost:${PORT}/api-docs`);
+  });
+}
 
 module.exports = app;
